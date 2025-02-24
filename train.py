@@ -82,7 +82,7 @@ except:
 model.gradient_checkpointing_enable()
 model = model.half() if device.type == "cuda" else model
 
-scaler = torch.amp.GradScaler("cuda") if device.type == "cuda" else None
+scaler = torch.amp.GradScaler() if device.type == "cuda" else None
 
 # Optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -185,18 +185,14 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            with torch.amp.autocast(device_type="cuda", dtype=torch.float16, enabled=(device.type == "cuda")):
+            with torch.autocast("cuda", dtype=torch.float16):  # Enable FP16 precision
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels, use_cache=False)
                 loss = outputs.loss
 
-            if scaler:
-                scaler.scale(loss).backward()
-                scaler.unscale_(optimizer)
-                scaler.step(optimizer)
-                scaler.update()
-            else:
-                loss.backward()
-                optimizer.step()
+            scaler.scale(loss).backward()  # Scales gradients to prevent underflow
+            scaler.step(optimizer)
+            scaler.update()
+            optimizer.zero_grad()
 
             total_loss += loss.item()
 
