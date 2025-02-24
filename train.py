@@ -191,6 +191,7 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
 
             if scaler:
                 scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
                 scaler.step(optimizer)
                 scaler.update()
             else:
