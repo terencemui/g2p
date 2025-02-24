@@ -14,6 +14,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--run_number", type=int, default=-1)
 parser.add_argument("--start_epoch", type=int, default=0)
 parser.add_argument("--epochs", type=int, default=10)
+parser.add_argument(
+    "-d", "--device",
+    type=str,
+    choices=["mps", "cpu", "cuda"],
+    default="cpu",
+)
 
 args = parser.parse_args()
 
@@ -46,14 +52,14 @@ writer.add_text("Description", "Token-based, training on train-clean-100.csv")
 
 model_name = "google-t5/t5-small"
 
-if torch.mps.is_available():
-    device = torch.device("mps")
-elif torch.cuda.is_available():
-    device = torch.device("cuda")
-else:
+# Validate device availability
+device = torch.device(args.device)
+if args.device == "cuda" and not torch.cuda.is_available():
+    print("Error: CUDA is not available on this machine. Falling back to CPU.")
     device = torch.device("cpu")
-device = torch.device("cpu")
-
+elif args.device == "mps" and not torch.backends.mps.is_available():
+    print("Error: MPS is not available on this machine. Falling back to CPU.")
+    device = torch.device("cpu")
 print(f"Device: {device}")
 
 tokenizer = T5Tokenizer.from_pretrained(model_name)
