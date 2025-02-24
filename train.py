@@ -204,7 +204,7 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
                 loss = outputs.loss
 
             if torch.isnan(loss):
-                print("Warning: NaN loss detected! Skipping batch.")
+                # print("Warning: NaN loss detected! Skipping batch.")
                 continue
 
             scaler.scale(loss).backward()  # Scales gradients to prevent underflow
