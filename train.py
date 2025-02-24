@@ -20,6 +20,19 @@ parser.add_argument(
     choices=["mps", "cpu", "cuda"],
     default="cpu",
 )
+parser.add_argument(
+    "-ds", "--dataset",
+    type=str,
+    choices=["train-clean-100.csv", "train-clean-360.csv", "train-clean-500.csv"],
+    default="train-clean-100.csv"
+)
+parser.add_argument(
+    "--size",
+    type=str,
+    choices=["small", "base"],
+    default="small"
+)
+
 
 args = parser.parse_args()
 
@@ -42,14 +55,15 @@ epochs = args.epochs
 batch_size = 16
 lr = 5e-5
 
-train_dataset_path = "clean_data/train-clean-100.csv"
+train_dataset_path = f"clean_data/{args.dataset}"
 val_dataset_path = "clean_data/test-clean.csv"
 
 log_dir = f"logs/run_{run_number}"
 writer = SummaryWriter(log_dir=log_dir, purge_step=start_epoch)
 writer.add_text("Description", f"Token-based, training on {train_dataset_path}")
 
-model_name = "google-t5/t5-small"
+model_name = f"google-t5/t5-{args.size}"
+print(f"Model: {model_name}")
 
 # Validate device availability
 device = torch.device(args.device)
