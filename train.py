@@ -1,52 +1,34 @@
 import pandas as pd
 import torch
-from transformers import T5Tokenizer, T5ForConditionalGeneration, AdamW
+from transformers import T5Tokenizer, T5ForConditionalGeneration
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 from jiwer import wer
 from torch.utils.tensorboard import SummaryWriter
-import argparse
-import os
-
-parser = argparse.ArgumentParser()
-# parser.add_argument("name", type=str, help="Your name")
-# parser.add_argument("-a", "--age", type=int, help="Your age", required=False)
-# parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose mode")
-
-parser.add_argument("--run_number", type=int, default=-1)
-parser.add_argument("--start_epoch", type=int, default=0)
-parser.add_argument("--epochs", type=int, default=10)
-
-args = parser.parse_args()
 
 # hyperparams
-if args.run_number == -1:
-    # no run number, create new run
-    folders = os.listdir("logs")
-    i = 1
-    while f"run_{i}" in folders:
-        i += 1
-    run_number = i
-    start_epoch = 0
+run_number = 5
+start_epoch = 0
+epochs = 20
 
-else:
-    run_number = args.run_number
-    start_epoch = args.start_epoch
-
-epochs = args.epochs
+batch_size = 8
+lr = 5e-5
 
 log_dir = f"logs/run_{run_number}"
 writer = SummaryWriter(log_dir=log_dir, purge_step=start_epoch)
 writer.add_text("Description", "Token-based, training on train-clean-100.csv")
 
-batch_size = 16
-lr = 5e-5
-
 model_name = "google-t5/t5-small"
-model_path = "g2p_t5_model"
 
-# device = torch.device("mps" if torch.mps.is_available() else "cpu")
-device = torch.device("cpu")
+if torch.mps.is_available():
+    device = torch.device("mps")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+else:
+    device = "cpu"
+
+print(f"Device: {device}")
 
 tokenizer = T5Tokenizer.from_pretrained(model_name)
 
@@ -61,15 +43,27 @@ except:
 model.gradient_checkpointing_enable()
 
 # Optimizer
-optimizer = AdamW(model.parameters(), lr=lr)
+optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+try:
+    optimizer.load_state(torch.load(f"{model_path}/optimizer.pt"))
+except:
+    print("No optimizer found")
+
+print(f"Run: run{run_number}")
+print(f"Start epoch: {start_epoch}")
+print(f"Epochs: {epochs}")
 
 writer.add_text("Hyperparameters", f"Learning Rate:\t{lr} , Batch Size:\t{batch_size}")
 writer.add_scalar("Learning Rate", lr)
 writer.add_scalar("Batch Size", batch_size)
 
-print(f"Run: run{run_number}")
-print(f"Start epoch: {start_epoch}")
-print(f"Epochs: {epochs}")
+# clear gpu_cache
+def clear_gpu_cache():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
 
 # Function to force character-level tokenization
 def format_input(text):
@@ -90,8 +84,8 @@ class G2PDataset(Dataset):
         self.data = self.data[
             self.data.apply(
                 lambda x: (
-                    len(tokenizer(format_input(x["text"]))["input_ids"]) <= self.max_length
-                    and len(tokenizer(x["phonemes"])["input_ids"]) <= self.max_length
+                    len(tokenizer(format_input(x["text"]), verbose=False)["input_ids"]) <= self.max_length
+                    and len(tokenizer(x["phonemes"], verbose=False)["input_ids"]) <= self.max_length
                 ),
                 axis=1
             )
@@ -155,7 +149,7 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
 
             progress_bar.set_postfix(loss=loss.item())
             del input_ids, attention_mask, labels
-            torch.mps.empty_cache()
+            clear_gpu_cache()
 
         avg_train_loss = total_loss / len(train_loader)
         if verbose:
@@ -171,8 +165,9 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
 
         # save the model
         model.save_pretrained(f"weights/weights_{run_number}/epoch_{epoch}")
+        torch.save(optimizer.state_dict(), f"weights/weights_{run_number}/epoch_{epoch}/optimizer.pt")
 
-        torch.mps.empty_cache()
+        clear_gpu_cache()
 
     return
 
@@ -209,7 +204,7 @@ def validate_model(model, val_loader, verbose=True):
 
             total_samples += len(batch['labels'])
 
-            torch.mps.empty_cache()
+            clear_gpu_cache()
 
     avg_val_loss = total_loss / len(val_loader)
     exact_match_accuracy = total_exact / total_samples
