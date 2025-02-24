@@ -60,7 +60,15 @@ if args.device == "cuda" and not torch.cuda.is_available():
 elif args.device == "mps" and not torch.backends.mps.is_available():
     print("Error: MPS is not available on this machine. Falling back to CPU.")
     device = torch.device("cpu")
+
+if device.type == "cuda":
+    print(f"Using CUDA with cuDNN Enabled: {torch.backends.cudnn.enabled}")
+
 print(f"Device: {device}")
+
+if args.device == "cuda" and torch.cuda.is_available():
+    torch.backends.cudnn.benchmark = True  # Enable fast auto-tuner
+    torch.backends.cudnn.enabled = True  # Ensure cuDNN is being used
 
 tokenizer = T5Tokenizer.from_pretrained(model_name)
 
@@ -73,6 +81,7 @@ except:
     print("No model found. Creating new model")
     model = T5ForConditionalGeneration.from_pretrained(model_name).to(device)
 model.gradient_checkpointing_enable()
+model = model.half() if device.type == "cuda" else model
 
 # Optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -92,14 +101,11 @@ writer.add_scalar("Batch Size", batch_size)
 
 # clear gpu_cache
 def clear_gpu_cache():
-    # if torch.cuda.is_available():
-    #     torch.cuda.empty_cache()
-    #     torch.cuda.ipc_collect()
-    # if torch.backends.mps.is_available():
-    #     torch.mps.empty_cache()
     if device is torch.device("cuda"):
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
+        torch.backends.cudnn.benchmark = False  # Reset benchmark tuning
+        torch.backends.cudnn.benchmark = True  # Re-enable after clearing
     elif device is torch.device("mps"):
         torch.mps.empty_cache()
 
@@ -187,7 +193,9 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
 
             progress_bar.set_postfix(loss=loss.item())
             del input_ids, attention_mask, labels
-            clear_gpu_cache()
+            # clear_gpu_cache()
+
+        torch.cuda.memory_summary(device=None, abbreviated=False)
 
         avg_train_loss = total_loss / len(train_loader)
         if verbose:
@@ -205,7 +213,7 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
         model.save_pretrained(f"weights/weights_{run_number}/epoch_{epoch}")
         torch.save(optimizer.state_dict(), f"weights/weights_{run_number}/epoch_{epoch}/optimizer.pt")
 
-        clear_gpu_cache()
+        # clear_gpu_cache()
 
     return
 
