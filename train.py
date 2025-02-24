@@ -254,8 +254,11 @@ def validate_model(model, val_loader, verbose=True):
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
-            total_loss += outputs.loss.item()
+            with torch.autocast("cuda", dtype=torch.float16):
+                outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels, use_cache=False)
+                loss = outputs.loss
+
+            total_loss += loss.item()
 
             # calculate per
             predicted_ids = torch.argmax(outputs.logits, dim=-1)
