@@ -232,6 +232,7 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
         model.save_pretrained(f"weights/weights_{run_number}/epoch_{epoch}")
         torch.save(optimizer.state_dict(), f"weights/weights_{run_number}/epoch_{epoch}/optimizer.pt")
 
+        torch.cuda.memory_summary()
         # clear_gpu_cache()
 
     return
