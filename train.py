@@ -6,13 +6,38 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from jiwer import wer
 from torch.utils.tensorboard import SummaryWriter
+import argparse
+import os
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument("--run_number", type=int, default=-1)
+parser.add_argument("--start_epoch", type=int, default=0)
+parser.add_argument("--epochs", type=int, default=10)
+
+args = parser.parse_args()
 
 # hyperparams
-run_number = 5
-start_epoch = 0
-epochs = 20
+if args.run_number == -1:
+    # no run number, create new run
+    folders = os.listdir("logs")
+    i = 1
+    while f"run_{i}" in folders:
+        i += 1
+    run_number = i
+    start_epoch = 0
 
-batch_size = 8
+else:
+    run_number = args.run_number
+    start_epoch = args.start_epoch
+
+epochs = args.epochs
+
+log_dir = f"logs/run_{run_number}"
+writer = SummaryWriter(log_dir=log_dir, purge_step=start_epoch)
+writer.add_text("Description", "Token-based, training on train-clean-100.csv")
+
+batch_size = 16
 lr = 5e-5
 
 log_dir = f"logs/run_{run_number}"
@@ -26,7 +51,8 @@ if torch.mps.is_available():
 elif torch.cuda.is_available():
     device = torch.device("cuda")
 else:
-    device = "cpu"
+    device = torch.device("cpu")
+device = torch.device("cpu")
 
 print(f"Device: {device}")
 
@@ -59,10 +85,15 @@ writer.add_scalar("Batch Size", batch_size)
 
 # clear gpu_cache
 def clear_gpu_cache():
-    if torch.cuda.is_available():
+    # if torch.cuda.is_available():
+    #     torch.cuda.empty_cache()
+    #     torch.cuda.ipc_collect()
+    # if torch.backends.mps.is_available():
+    #     torch.mps.empty_cache()
+    if device is torch.device("cuda"):
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
-    if torch.backends.mps.is_available():
+    elif device is torch.device("mps"):
         torch.mps.empty_cache()
 
 # Function to force character-level tokenization
