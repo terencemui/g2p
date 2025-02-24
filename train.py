@@ -23,7 +23,7 @@ parser.add_argument(
 parser.add_argument(
     "-ds", "--dataset",
     type=str,
-    choices=["train-clean-100.csv", "train-clean-360.csv", "train-clean-500.csv"],
+    choices=["dev-clean.csv", "train-clean-100.csv", "train-clean-360.csv", "train-clean-500.csv"],
     default="train-clean-100.csv"
 )
 parser.add_argument(
@@ -268,8 +268,8 @@ def validate_model(model, val_loader, verbose=True):
 
             # calculate per
             predicted_ids = torch.argmax(outputs.logits, dim=-1)
-            pred_phonemes = [tokenizer.decode(pred, skip_special_tokens=True) for pred in predicted_ids]
-            true_phonemes = [tokenizer.decode(label, skip_special_tokens=True) for label in labels]
+            pred_phonemes = tokenizer.batch_decode(predicted_ids, skip_special_tokens=True)
+            true_phonemes = tokenizer.batch_decode(labels, skip_special_tokens=True)
 
             for pred, target in zip(pred_phonemes, true_phonemes):
                 if pred.strip() == target.strip():
