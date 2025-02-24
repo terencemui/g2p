@@ -80,7 +80,7 @@ except:
     print("No model found. Creating new model")
     model = T5ForConditionalGeneration.from_pretrained(model_name).to(device)
 model.gradient_checkpointing_enable()
-model = model.half() if device.type == "cuda" else model
+# model = model.half() if device.type == "cuda" else model
 
 scaler = torch.amp.GradScaler() if device.type == "cuda" else None
 
