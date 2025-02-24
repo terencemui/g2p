@@ -71,7 +71,8 @@ model.gradient_checkpointing_enable()
 # Optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 try:
-    optimizer.load_state(torch.load(f"{model_path}/optimizer.pt"))
+    optimizer.load_state_dict(torch.load(f"{model_path}/optimizer.pt"))
+    print(f"Successfully loaded optimizer: {model_path}/optimizer.pt")
 except:
     print("No optimizer found")
 
