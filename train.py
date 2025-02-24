@@ -39,16 +39,15 @@ else:
 
 epochs = args.epochs
 
-log_dir = f"logs/run_{run_number}"
-writer = SummaryWriter(log_dir=log_dir, purge_step=start_epoch)
-writer.add_text("Description", "Token-based, training on train-clean-100.csv")
-
 batch_size = 16
 lr = 5e-5
 
+train_dataset_path = "clean_data/train-clean-100.csv"
+val_dataset_path = "clean_data/test-clean.csv"
+
 log_dir = f"logs/run_{run_number}"
 writer = SummaryWriter(log_dir=log_dir, purge_step=start_epoch)
-writer.add_text("Description", "Token-based, training on train-clean-100.csv")
+writer.add_text("Description", f"Token-based, training on {train_dataset_path}")
 
 model_name = "google-t5/t5-small"
 
@@ -82,6 +81,8 @@ except:
     model = T5ForConditionalGeneration.from_pretrained(model_name).to(device)
 model.gradient_checkpointing_enable()
 model = model.half() if device.type == "cuda" else model
+
+scaler = torch.amp.GradScaler("cuda") if device.type == "cuda" else None
 
 # Optimizer
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -164,8 +165,8 @@ def collate_fn(batch):
     }
 
 # Load dataset and dataloader
-train_dataset = G2PDataset("clean_data/train-clean-100.csv")
-val_dataset = G2PDataset("clean_data/test-clean.csv")
+train_dataset = G2PDataset(train_dataset_path)
+val_dataset = G2PDataset(val_dataset_path)
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, collate_fn=collate_fn)
@@ -184,10 +185,17 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels, use_cache=False)
-            loss = outputs.loss
-            loss.backward()
-            optimizer.step()
+            with torch.amp.autocast(device_type="cuda", dtype=torch.float16, enabled=(device.type == "cuda")):
+                outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels, use_cache=False)
+                loss = outputs.loss
+
+            if scaler:
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                optimizer.step()
 
             total_loss += loss.item()
 
