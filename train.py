@@ -54,6 +54,7 @@ epochs = args.epochs
 
 batch_size = 16
 lr = 5e-5
+weight_decay = 0.01
 
 train_dataset_path = f"clean_data/{args.dataset}"
 val_dataset_path = "clean_data/test-clean.csv"
@@ -99,7 +100,7 @@ model.gradient_checkpointing_enable()
 scaler = torch.amp.GradScaler() if device.type == "cuda" else None
 
 # Optimizer
-optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 try:
     optimizer.load_state_dict(torch.load(f"{model_path}/optimizer.pt"))
     print(f"Successfully loaded optimizer: {model_path}/optimizer.pt")
