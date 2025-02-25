@@ -218,15 +218,15 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
 
             progress_bar.set_postfix(loss=loss.item())
             del input_ids, attention_mask, labels
-            # clear_gpu_cache()
 
-        torch.cuda.memory_summary(device=None, abbreviated=False)
+        # torch.cuda.memory_summary(device=None, abbreviated=False)
 
         avg_train_loss = total_loss / len(train_loader)
         if verbose:
             print(f"Epoch {epoch+1}, Loss: {avg_train_loss:.4f}")
 
         writer.add_scalar("Training Loss", avg_train_loss, epoch)
+        clear_gpu_cache()
 
         # Validation
         avg_val_loss, exact_match_accuracy, avg_per = validate_model(model, val_loader)
