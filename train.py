@@ -193,13 +193,11 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
         total_loss = 0
         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{start_epoch + epochs}", leave=True)
         for batch in progress_bar:
-            optimizer.zero_grad()
-
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
 
-            with torch.autocast("cuda", dtype=torch.float16):  # Enable FP16 precision
+            with torch.autocast("cuda"):  # Enable FP16 precision
                 outputs = model(input_ids=input_ids, attention_mask=attention_mask, labels=labels, use_cache=False)
                 loss = outputs.loss
 
@@ -208,8 +206,6 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
                 continue
 
             scaler.scale(loss).backward()  # Scales gradients to prevent underflow
-            scaler.unscale_(optimizer)
-
             scaler.step(optimizer)
             scaler.update()
             optimizer.zero_grad()
@@ -218,8 +214,6 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
 
             progress_bar.set_postfix(loss=loss.item())
             del input_ids, attention_mask, labels
-
-        # torch.cuda.memory_summary(device=None, abbreviated=False)
 
         avg_train_loss = total_loss / len(train_loader)
         if verbose:
@@ -238,7 +232,6 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
         model.save_pretrained(f"weights/weights_{run_number}/epoch_{epoch}")
         torch.save(optimizer.state_dict(), f"weights/weights_{run_number}/epoch_{epoch}/optimizer.pt")
 
-        # print(torch.cuda.memory_summary())
         clear_gpu_cache()
 
     return
