@@ -229,8 +229,10 @@ def train_model(model, train_loader, val_loader, epochs, writer, verbose=True):
         writer.add_scalar("Average PER", avg_per, epoch)
 
         # save the model
-        model.save_pretrained(f"weights/weights_{run_number}/epoch_{epoch}")
-        torch.save(optimizer.state_dict(), f"weights/weights_{run_number}/epoch_{epoch}/optimizer.pt")
+        model.save_pretrained(f"weights/weights_{run_number}")
+        torch.save(optimizer.state_dict(), f"weights/weights_{run_number}/optimizer.pt")
+        # model.save_pretrained(f"weights/weights_{run_number}/epoch_{epoch}")
+        # torch.save(optimizer.state_dict(), f"weights/weights_{run_number}/epoch_{epoch}/optimizer.pt")
 
         clear_gpu_cache()
 
