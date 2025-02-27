@@ -23,7 +23,7 @@ parser.add_argument(
 parser.add_argument(
     "-ds", "--dataset",
     type=str,
-    choices=["dev-clean.csv", "train-clean-100.csv", "train-clean-360.csv", "train-clean-500.csv"],
+    choices=["dev-clean.csv", "train-clean-100.csv", "train-clean-360.csv", "train-other-500.csv"],
     default="train-clean-100.csv"
 )
 parser.add_argument(
