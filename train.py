@@ -29,7 +29,7 @@ parser.add_argument(
 parser.add_argument(
     "--size",
     type=str,
-    choices=["small", "base"],
+    choices=["small", "base", "large"],
     default="small"
 )
 
